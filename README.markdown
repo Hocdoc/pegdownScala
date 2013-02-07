@@ -37,12 +37,12 @@ Pros:
 
 * The parser is implemented as immutable class and thread safe.
 * Should run on the Google AppEngine.
-* More compact Scala code.
+* More compact Scala code (30% of the Java code lines).
 * No time expensive parser extension step.
 
 Cons:
 
-* pegdownScala is in his early beta stage: Lists, definitionlists and interlaced HTML tags doesn't work correct, 
+* pegdownScala is a beta version: interlaced HTML tags doesn't work correct, 
   PegDown is much better tested.
 * No implementation for timeouts in pegdownScala. You may want to use Akka to handle long tasks.
 * pegdownScala isn't optimized for performance.

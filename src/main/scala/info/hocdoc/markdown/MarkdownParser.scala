@@ -34,8 +34,8 @@ class MarkdownParser(val config: MarkdownParserConfiguration) extends Parser {
   
   override val buildParseTree = config.buildParseTree
   
-  private def parseInternal(source: String, tight: Boolean = false): RootNode = {
-    val parsingResult = ReportingParseRunner(Root).run(source + (if(tight) "" else "\n\n"))
+  private def parseInternal(source: String): RootNode = {
+    val parsingResult = ReportingParseRunner(Root).run(source + "\n\n")
 
     parsingResult.result match {
       case Some(astRoot) => astRoot
@@ -80,17 +80,25 @@ class MarkdownParser(val config: MarkdownParserConfiguration) extends Parser {
   }
 
   def Verbatim: Rule1[VerbatimNode] = rule {
-    // TODO: I don't understand this?
-    // (("\t" ~ line.append(repeat(' ', 4-(currentIndex()-1-(Integer)peek())%4))) |
     oneOrMore(
       zeroOrMore(BlankLine ~ push("")) ~
-      (Indent ~ (oneOrMore(NotNewline ~ ANY) ~> (_.toString)) ~ Newline) ~~>
-      ((xs: List[String], y: String) => xs ::: y :: Nil)
-    ) ~~> ((xs: List[List[String]]) => VerbatimNode(tabsToSpaces(xs.flatten.mkString("\n")), None))
+      Indent ~ oneOrMore(NotNewline ~ ANY) ~> (_.toString) ~ Newline ~~>
+      ((xs: List[String], y: String) => xs ::: tabsToSpaces(y) :: Nil)
+    ) ~~> ((xs: List[List[String]]) => VerbatimNode(xs.flatten.mkString("\n"), None))
   }
 
-  /** Replace all tabs with four spaces. */
-  private def tabsToSpaces(string: String): String = string.replaceAll("\t", "    ")
+  /** Replace all tabs with 1 to 4 spaces. */
+  private def tabsToSpaces(string: String): String = tabsToSpaces(0, string.split("\t").toList).mkString
+
+  private def tabsToSpaces(beginIndex: Int, notExpanded: List[String]): List[String] = notExpanded match {
+    case x :: Nil => notExpanded
+    case x :: xs => {
+      val currentIndex = beginIndex + x.length
+      val spacesCount = 4 - currentIndex % 4
+      x + " " * spacesCount :: tabsToSpaces(currentIndex + spacesCount, xs)
+    }
+    case Nil => Nil
+  }
 
   def FencedCodeBlock: Rule1[VerbatimNode] = rule {
     CodeFence ~
@@ -175,37 +183,53 @@ class MarkdownParser(val config: MarkdownParserConfiguration) extends Parser {
 
   def DefTermInline: Rule1[Node] = rule { NotNewline ~ !(":" ~ Newline) ~ Inline }
 
-  def Definition: Rule1[DefinitionNode] = rule { ListItem(DefListBullet) ~~> (x => DefinitionNode(x.children))}
+  def Definition: Rule1[DefinitionNode] = rule { ListItem(DefListBullet, false) ~~> (x => DefinitionNode(x.children))}
 
   def DefListBullet: Rule0 = rule { NonindentSpace ~ anyOf(":~") ~ oneOrMore(Spacechar) }
 
   //************* LISTS ****************
 
   def BulletList: Rule1[BulletListNode] = rule {
-    oneOrMore(ListItem(Bullet)) ~ zeroOrMore(BlankLine) ~~> (BulletListNode(_))
+    ListItem(Bullet, true) ~ zeroOrMore(ListItem(Bullet, false)) ~ zeroOrMore(BlankLine) ~~> 
+    ((x: ListItemNode, ys: List[ListItemNode]) => BulletListNode(x :: ys))
   }
 
   def OrderedList: Rule1[OrderedListNode] = rule {
-    oneOrMore(ListItem(Enumerator)) ~ zeroOrMore(BlankLine) ~~> (OrderedListNode(_))
+    ListItem(Enumerator, true) ~ zeroOrMore(ListItem(Enumerator, false)) ~ zeroOrMore(BlankLine) ~~>
+    ((x: ListItemNode, ys: List[ListItemNode]) => OrderedListNode(x :: ys))
   }
 
   // See issue https://github.com/sirthias/parboiled/issues/40
-  // TODO: Tight doesn't work like this.
-  def ListItem(itemStart: Rule0): Rule1[ListItemNode] = {
+  def ListItem(itemStart: Rule0, isFirstItem: Boolean): Rule1[ListItemNode] = {
     // for a simpler parser design we use a recursive parsing strategy for list items:
     // we collect a number of markdown source blocks for an item, run complete parsing cycle on these and attach
     // the roots of the inner parsing results Node to the outer Node tree
     optional(BlankLine ~ push(false)) ~     // tight Boolean
     itemStart ~ Line ~                    // block String = first line of the list item
     zeroOrMore(optional(Indent) ~ NotItem ~ Line) ~ // temp   List[String] = first paragraph of the list item, excluding the first line
-    zeroOrMore(BlankLine ~ Indent ~ (DoubleIndentedBlocks | IndentedBlock)) ~
+    zeroOrMore(optional(BlankLine ~ push(false)) ~ Indent ~ (DoubleIndentedBlocks | IndentedBlock)) ~    // List[(Option[Boolean], String)
     optional(&(oneOrMore(BlankLine) ~ itemStart) ~ push(false)) ~~>   // tight after
-    ((tightBefore: Option[Boolean], x: String, ys: List[String], zs: List[String], tightAfter: Option[Boolean]) => {
+    ((tightBefore: Option[Boolean], x: String, ys: List[String], zs: List[(Option[Boolean], String)], tightAfter: Option[Boolean]) => {
       val firstParagraph = (x :: ys).mkString("\n")
-      val allParagraphs = firstParagraph :: zs
-      val tight = (allParagraphs.size == 1) & tightBefore.getOrElse(true) && tightAfter.getOrElse(true)
-      ListItemNode(parseInternal(allParagraphs.mkString("\n\n"), tight).children)
+      val allParagraphs = firstParagraph :: zs.unzip._2
+      val internalNodes = parseInternal(allParagraphs.mkString("\n\n")).children
+
+      val itemContainsBlanklines = zs.exists(_._1 == Some(false))
+      val tight = !itemContainsBlanklines && ((!isFirstItem && tightBefore.getOrElse(true)) || (isFirstItem && tightAfter.getOrElse(true)))
+      val itemChildren = if(tight) removeHeadParagraph(internalNodes) else internalNodes  // Remove the paragraph from tight lists
+
+      ListItemNode(itemChildren)
     })
+  }
+
+  /** 
+   * Removes a paragraph at the head of a nodes list. 
+   * If no paragraph exists, the same node list is returned.
+   */
+  def removeHeadParagraph(nodes: List[Node]): List[Node] = nodes.head match {
+    // A Newline is added to the SuperNode to support the tests from other Markdown parsers.
+    case n: ParaNode => new SuperNode(n.children ::: TextNode("\n") :: Nil) :: nodes.tail
+    case _ => nodes
   }
 
   def DoubleIndentedBlocks: Rule1[String] = rule {

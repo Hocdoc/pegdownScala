@@ -8,22 +8,22 @@ class PhpMarkdownSpec extends AbstractPegDownSpec {
       implicit val parser = MarkdownParser.noExtensions
 
       test("PhpMarkdown/Backslash_escapes")
-//      test("PhpMarkdown/Code_block_in_a_list_item")  // TODO2
+      test("PhpMarkdown/Code_block_in_a_list_item")
       test("PhpMarkdown/Code_Spans")
       test("PhpMarkdown/Email_auto_links")
 //    test("PhpMarkdown/Emphasis")
 //      test("PhpMarkdown/Headers")
-      test("PhpMarkdown/Horizontal_Rules")  // TODO
+      test("PhpMarkdown/Horizontal_Rules")
 //      test("PhpMarkdown/Inline_HTML_(Simple)")  // TODO
 //      test("PhpMarkdown/Inline_HTML_(Span)")  // TODO
 //      test("PhpMarkdown/Inline_HTML_comments")  // TODO
 ////      test("PhpMarkdown/Ins_and_del")
 ////      test("PhpMarkdown/Links_inline_style")
-//      test("PhpMarkdown/MD5_Hashes")  // TODO
-//      test("PhpMarkdown/Nesting")  // TODO
+      test("PhpMarkdown/MD5_Hashes")
+      test("PhpMarkdown/Nesting")
 ////      test("PhpMarkdown/Parens_in_URL")
 ////      test("PhpMarkdown/PHP-Specific_Bugs")
-//      test("PhpMarkdown/Tight_blocks")  // TODO
+      test("PhpMarkdown/Tight_blocks")
     }
 
     "pass selected parts of the PhpMarkdownExtra test suite" in {

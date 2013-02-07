@@ -11,7 +11,7 @@ class Markdown103Spec extends AbstractPegDownSpec {
         test("MarkdownTest103/Backslash escapes")
         test("MarkdownTest103/Blockquotes with code blocks")
         test("MarkdownTest103/Code Blocks")
-//        test("MarkdownTest103/Code Spans")  // TODO
+        test("MarkdownTest103/Code Spans")
         test("MarkdownTest103/Hard-wrapped paragraphs with list-like lines")
         test("MarkdownTest103/Horizontal rules")
 //        test("MarkdownTest103/Inline HTML (Advanced)")    // TODO
@@ -22,13 +22,13 @@ class Markdown103Spec extends AbstractPegDownSpec {
         test("MarkdownTest103/Links, shortcut references")
         test("MarkdownTest103/Literal quotes in titles")
         test("MarkdownTest103/Nested blockquotes")
-//        test("MarkdownTest103/Ordered and unordered lists")   // TODO
+        test("MarkdownTest103/Ordered and unordered lists")
         test("MarkdownTest103/Strong and em together")
-//        test("MarkdownTest103/Tabs")          // TODO
+        test("MarkdownTest103/Tabs")
         test("MarkdownTest103/Tidyness")
-//
-//        test("MarkdownTest103/Markdown Documentation - Basics")   // TODO
-//        test("MarkdownTest103/Markdown Documentation - Syntax")   // TODO
+
+        test("MarkdownTest103/Markdown Documentation - Basics")   // TODO
+        test("MarkdownTest103/Markdown Documentation - Syntax")   // TODO
       }
 
       "without any enabled extensions" in {

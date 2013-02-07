@@ -27,7 +27,10 @@ object Main extends App {
     println("pegdownScala - A markdown processor written in Scala.\n" +
       "Usage: pegdownScala <MarkdownFilenames.md>")
   } else {
+    val startTime = System.currentTimeMillis
     args.map(markdownFileToHtml)
+    val time = System.currentTimeMillis - startTime
+//    println("Time: " + time + "ms")
   }
   
   def markdownFileToHtml(filename: String) = {
